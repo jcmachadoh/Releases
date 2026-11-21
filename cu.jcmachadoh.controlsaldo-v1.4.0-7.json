@@ -1,7 +1,7 @@
 {
   "versionCode": 7,
   "versionName": "1.4.0",
-  "description": "Actualizaciones dentro de la app: comprobación automática, descarga verificada e instalación desde GitHub Releases.",
-  "sha256": "cfb30dc1cbd19bd65f310699e41b9dd3b74e6186d5f0f8cb7dbbd8e63e5e9543",
-  "sizeBytes": 4058569
+  "description": "Actualizaciones dentro de la app: comprobación manual y automática, descarga verificada e instalación desde GitHub Releases.",
+  "sha256": "8e13253642476ef6a2088567a93618b89dfb601602976642614c375519c3e3df",
+  "sizeBytes": 4061865
 }
