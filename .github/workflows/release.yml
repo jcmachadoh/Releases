@@ -1,0 +1,64 @@
+name: Publish APK release
+
+# Se dispara al subir un tag con el formato:
+#   cu.jcmachadoh.controlsaldo-v<versionName>-<versionCode>
+#
+# Crea el Release de GitHub con el APK y el JSON que ya están en el árbol del tag.
+# Así el flujo es: script local -> commit + push del tag -> GitHub crea el Release solo.
+# No necesita tokens personales: usa el GITHUB_TOKEN efímero del workflow.
+
+on:
+  push:
+    tags:
+      - 'cu.jcmachadoh.controlsaldo-v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout del tag
+        uses: actions/checkout@v4
+
+      - name: Validar que los assets existen
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          apk="${TAG}.apk"
+          json="${TAG}.json"
+          [[ -f "$apk" ]] || { echo "::error::Falta $apk"; exit 1; }
+          [[ -f "$json" ]] || { echo "::error::Falta $json"; exit 1; }
+
+          tag_code="${TAG##*-}"
+          json_code="$(jq -r '.versionCode' "$json")"
+          [[ "$tag_code" == "$json_code" ]] || {
+            echo "::error::versionCode del tag ($tag_code) != JSON ($json_code)"; exit 1;
+          }
+
+          expected_size="$(jq -r '.sizeBytes' "$json")"
+          actual_size="$(stat -c %s "$apk")"
+          [[ "$expected_size" == "$actual_size" ]] || {
+            echo "::error::Tamaño del APK ($actual_size) != JSON ($expected_size)"; exit 1;
+          }
+
+          echo "$(jq -r '.sha256' "$json")  $apk" | sha256sum -c -
+
+      - name: Crear Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          notes="$(jq -r '.description' "${TAG}.json")"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "El release $TAG ya existe; no se modifica."
+            exit 0
+          fi
+          gh release create "$TAG" "${TAG}.apk" "${TAG}.json" \
+            --title "$TAG" \
+            --notes "$notes" \
+            --latest=false \
+            --verify-tag
